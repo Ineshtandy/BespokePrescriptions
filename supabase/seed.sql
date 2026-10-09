@@ -1,0 +1,16 @@
+-- Local development seed data.
+-- `supabase db reset` applies migrations first, then this file.
+--
+-- This file inserts data. Schema and database behavior belong in
+-- supabase/migrations.
+--
+-- Later tasks may add:
+--   Reference data the application uses in development (clinical codes
+--   and development medicine catalogue entries).
+--   Synthetic workflow data (fictional clinics, staff, patients, visits,
+--   and prescriptions). Workflow records must be obviously fictional.
+--
+-- Keep real patient data, real clinical records, production credentials,
+-- real private staff information, and production secrets out of this file.
+--
+-- No application records are seeded yet.
