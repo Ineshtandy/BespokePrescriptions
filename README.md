@@ -31,7 +31,7 @@ supabase stop
 
 Version-controlled SQL migrations in `supabase/migrations` are the schema source of truth. That includes tables, columns, indexes, constraints, functions, triggers, types, Row-Level Security, policies, grants, and other persistent database objects.
 
-`supabase db reset` is the local rebuild. It recreates the local database, applies migrations, then runs `supabase/seed.sql` (`[db.seed].sql_paths` in `supabase/config.toml`).
+`supabase db reset` is the local rebuild. It recreates the local database, applies every migration, then loads the seed files listed in `[db.seed].sql_paths` in `supabase/config.toml`.
 
 ### Create a migration
 
@@ -51,18 +51,35 @@ Edit the SQL file the CLI creates under `supabase/migrations`. Review that SQL, 
 
 While a migration is still being implemented or reviewed, correct that same file. After it is accepted into project history, leave it unchanged. Later schema changes belong in a new migration created with `supabase migration new`.
 
+### Phase 1 local workflow
+
+From the repository root, with Docker running:
+
+```bash
+supabase start
+supabase db reset
+supabase test db
+```
+
+`supabase db reset` applies the Phase 1 migrations and then the development seed. `supabase test db` runs the pgTAP suite in `supabase/tests`. Run the reset before the tests when you want the suite to see a freshly seeded database. The seed-shape tests expect that seeded state.
+
 ### Seed data
 
-Migrations define structure and database behavior. `supabase/seed.sql` inserts development and reference data. It is applied only after migrations during `supabase db reset`, and it is safe to run on every reset.
+Migrations define structure and database behavior. Development data lives in `supabase/seeds/` and is applied, in order, by `supabase db reset`:
 
-Seed files stay free of real patient data, real clinical records, production credentials, real private staff information, and production secrets.
+- `01_clinical_codes.sql` — system clinical vocabulary
+- `02_medicines.sql` — development medicine catalogue
+- `03_synthetic_clinic.sql` — fictional clinic, staff, patients, visits, and prescriptions
 
-Two kinds of seed data will be added in later tasks:
+Every person, phone number, and prescription in those files is synthetic. The local sign-in password for the four seeded staff accounts is `demo-local-only`. That value is **LOCAL DEVELOPMENT ONLY**. It is not a production credential.
 
-- **Reference data** the application relies on in development, such as clinical frequency, timing, duration, and route codes, and development medicine catalogue entries.
-- **Synthetic workflow data** for exercising workflows and tests: a fictional clinic, doctor, assistant, patients, visits, and prescriptions. Those records must be obviously fictional.
+### Database tests
 
-Neither category is populated yet.
+`supabase/tests` holds the automated integrity and authorization suite. `supabase/manual/finalization_concurrency.sql` is a two-session locking procedure and is not part of `supabase test db`.
+
+### Documentation
+
+Durable phase records live in `documents/`. Phase 1 is `documents/phase-1-database-foundation.md`. After each later roadmap phase is completed and reviewed, add the next document there. Do not add empty placeholders ahead of the work.
 
 ### Studio
 

@@ -1,0 +1,52 @@
+-- Manual two-session check that item edits and finalization lock the same prescription row.
+-- This is not part of `supabase test db`. A single pgTAP transaction cannot show two
+-- sessions waiting on each other.
+--
+-- LOCAL DEVELOPMENT ONLY. Both sessions must ROLLBACK. Do not commit a finalized row
+-- from this procedure: a finalized prescription cannot be deleted.
+--
+-- Terminal 1 and terminal 2, from the repository root, after `supabase db reset`:
+--
+--   docker exec -it supabase_db_BespokePrescriptions psql -U postgres -d postgres
+--
+-- Session A
+--   begin;
+--   update public.prescription_items
+--   set notes = 'lock-check'
+--   where id = 'f2110000-0000-4000-8000-000000000004';
+--   select pg_sleep(20);
+--   rollback;
+--
+-- While session A is sleeping, session B:
+--   begin;
+--   set lock_timeout = '3s';
+--   select public.finalize_prescription('f1100000-0000-4000-8000-000000000003');
+--
+-- Session B should stop with SQLSTATE 55P03 while locking the parent prescription
+-- inside finalize_prescription, in its SELECT ... FOR UPDATE.
+-- Then session B: rollback;
+--
+-- Reverse the order to see the other wait:
+--
+-- Session A
+--   begin;
+--   select prescription_id
+--   from public.prescriptions
+--   where prescription_id = 'f1100000-0000-4000-8000-000000000003'
+--   for update;
+--   select pg_sleep(20);
+--   rollback;
+--
+-- Session B
+--   begin;
+--   set lock_timeout = '3s';
+--   update public.prescription_items
+--   set notes = 'should-wait'
+--   where id = 'f2110000-0000-4000-8000-000000000004';
+--
+-- Session B should stop with SQLSTATE 55P03 inside
+-- enforce_finalized_prescription_items, in its SELECT ... FOR UPDATE of the parent.
+-- Then session B: rollback;
+--
+-- The seeded row used here is Doctor A's draft on visit sequence 3.
+-- After both rollbacks its notes are still null and it is still a draft.
